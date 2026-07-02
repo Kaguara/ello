@@ -21,6 +21,8 @@ interface State {
   sayHint: string;
   attempts: number;
   micBlocked: boolean;
+  /** true = child actually said the word; false = retry-limit exit (never faked as success). */
+  earned: boolean;
 }
 
 const qs = new URLSearchParams(location.search);
@@ -65,6 +67,7 @@ export class App {
     sayHint: '',
     attempts: 0,
     micBlocked: false,
+    earned: true,
   };
 
   private adapter!: SpeechAdapter;
@@ -171,7 +174,7 @@ export class App {
     this.setState({ sayStatus: 'celebrate', sayHint: 'You said it!' });
     chime();
     await this.speak('Owl! You said it! That word is yours now.');
-    this.toReturn();
+    this.toReturn(true);
   };
 
   private sayMiss = async (silent: boolean, heard: string) => {
@@ -182,8 +185,8 @@ export class App {
       sayHint: silent ? 'I didn’t hear you…' : `I heard: “${heard.trim()}”`,
     });
     if (attempts >= RETRY_LIMIT) {
-      await this.speak('We found the owl together! Let’s keep reading.');
-      return this.toReturn();
+      await this.speak('Owl is a tricky word — that’s okay! We’ll practice it again soon. Let’s keep reading.');
+      return this.toReturn(false);
     }
     await this.speak(
       silent ? 'I didn’t hear you. Say it with me, nice and big: OWL!' : 'Almost! Listen: owl. Now you try — say owl!'
@@ -191,10 +194,23 @@ export class App {
     this.startListening();
   };
 
-  private toReturn = async () => {
-    this.setState({ phase: 'return', stars: 1, starPop: true, sayStatus: 'idle', caption: '' });
-    this.starPopTimer = window.setTimeout(() => this.setState({ starPop: false }), 900);
-    await this.speak('Now you know owl! Read that line again — I’m listening.');
+  private toReturn = async (earned: boolean) => {
+    this.setState({
+      phase: 'return',
+      earned,
+      stars: earned ? 1 : this.state.stars,
+      starPop: earned,
+      sayStatus: 'idle',
+      caption: '',
+    });
+    if (earned) {
+      this.starPopTimer = window.setTimeout(() => this.setState({ starPop: false }), 900);
+    }
+    await this.speak(
+      earned
+        ? 'Now you know owl! Read that line again — I’m listening.'
+        : 'Remember: owl, the bird that says whoo! Read that line again — I’m listening.'
+    );
   };
 
   private speak(text: string): Promise<void> {
@@ -237,6 +253,7 @@ export class App {
       sayStatus: 'idle',
       sayHint: '',
       attempts: 0,
+      earned: true,
     });
   };
 
@@ -388,9 +405,14 @@ export class App {
     this.el.coachMark.classList.toggle('hidden', !coachVisible);
     this.el.coachMark.classList.toggle('anim-floaty', coachVisible);
 
-    this.el.p2.classList.toggle('p2-return', s.phase === 'return');
+    const isReturn = s.phase === 'return';
+    this.el.p2.classList.toggle('p2-return', isReturn && s.earned);
+    this.el.p2.classList.toggle('p2-return-amber', isReturn && !s.earned);
     const owlSpan = this.el.p2.querySelector<HTMLElement>('[data-word="owl"]');
-    if (owlSpan) owlSpan.classList.toggle('owl-return', s.phase === 'return');
+    if (owlSpan) {
+      owlSpan.classList.toggle('owl-return', isReturn && s.earned);
+      owlSpan.classList.toggle('owl-return-amber', isReturn && !s.earned);
+    }
 
     // caption
     const hasCaption = !!s.caption;

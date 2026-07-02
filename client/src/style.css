@@ -149,12 +149,14 @@ button { font-family: inherit; }
 .story p.current { color: var(--story-text); font-weight: 600; }
 .story p.p2 { border-radius: 16px; transition: background .5s; }
 .story p.p2.p2-return { background: #E3F6F0; }
+.story p.p2.p2-return-amber { background: #FBF3E2; }
 .story span.word { cursor: pointer; }
 .story span.owl-word {
   cursor: pointer; border-radius: 8px; padding: 0 5px; margin: 0 -2px; transition: all .4s;
   background: rgba(18,165,160,.12); color: var(--story-text);
 }
 .story span.owl-word.owl-return { background: var(--teal-highlight); color: var(--success-text); }
+.story span.owl-word.owl-return-amber { background: #F6E3B8; color: #8A6A00; }
 
 .coach-mark {
   position: absolute; bottom: 190px; left: 50%; transform: translateX(-50%);
