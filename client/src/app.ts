@@ -170,7 +170,15 @@ export class App {
   private startListening = async () => {
     if (this.state.phase !== 'sayit' || this.state.sayStatus === 'celebrate') return;
     this.setState({ sayStatus: 'listening', sayHint: 'Listening…' });
-    const res = await this.adapter.listenFor('owl', LISTEN_MS);
+    // listenFor() calls onMicBlocked() synchronously (before its promise
+    // settles) when the platform is known upfront to be unsupported —
+    // catch that here so the hint reflects reality instead of claiming to
+    // listen for the full window.
+    const listenPromise = this.adapter.listenFor('owl', LISTEN_MS);
+    if (this.state.micBlocked) {
+      this.setState({ sayHint: 'Mic not supported on this browser — simulating…' });
+    }
+    const res = await listenPromise;
     if (this.state.phase !== 'sayit') return;
     if (res.type === 'match') return this.saySuccess();
     if (res.type === 'miss') return this.sayMiss(false, res.heard);

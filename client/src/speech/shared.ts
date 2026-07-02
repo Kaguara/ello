@@ -81,6 +81,21 @@ export async function webSpeechSpeak(text: string): Promise<void> {
   });
 }
 
+// iOS requires every browser (Chrome, Firefox, Edge, etc.) to run on
+// Apple's WebKit engine — none of them get Google's speech backend there.
+// Apple's own SpeechRecognition implementation on iOS is well documented to
+// be unreliable (permission prompt appears, but transcripts often never
+// arrive), regardless of which browser app is showing that prompt. Rather
+// than let a child sit through failed listen attempts, route straight to
+// the designed fallback pill on iOS.
+function isUnreliableSpeechRecognitionPlatform(): boolean {
+  const ua = navigator.userAgent || '';
+  const isIPhoneOrIPod = /iPhone|iPod/.test(ua);
+  // iPadOS 13+ reports as "MacIntel" with touch support, unlike real Macs.
+  const isIPad = /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return isIPhoneOrIPod || isIPad;
+}
+
 export function webSpeechListen(
   word: string,
   ms: number,
@@ -89,6 +104,7 @@ export function webSpeechListen(
   return new Promise((resolve) => {
     let done = false;
     let rec: any = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const finish = (r: ListenResult) => {
       if (done) return;
       done = true;
@@ -104,7 +120,11 @@ export function webSpeechListen(
     setPendingResolver(finish);
 
     const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) {
+    if (!SR || isUnreliableSpeechRecognitionPlatform()) {
+      // Known upfront to be unavailable/unreliable. Still run the full
+      // listen window rather than resolving early, so the pacing feels the
+      // same on every platform — app.ts swaps the hint text to make clear
+      // this attempt is simulated, not silently pretending to listen.
       onMicBlocked();
     } else {
       try {
@@ -119,7 +139,12 @@ export function webSpeechListen(
           finish(matchWord(text, word) ? { type: 'match' } : { type: 'miss', heard: text });
         };
         rec.onerror = (e: any) => {
-          if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'audio-capture') {
+          if (
+            e.error === 'not-allowed' ||
+            e.error === 'service-not-allowed' ||
+            e.error === 'audio-capture' ||
+            e.error === 'network'
+          ) {
             onMicBlocked();
           }
         };
@@ -128,7 +153,7 @@ export function webSpeechListen(
         onMicBlocked();
       }
     }
-    const timer = setTimeout(() => finish({ type: 'silence' }), ms);
+    timer = setTimeout(() => finish({ type: 'silence' }), ms);
   });
 }
 
