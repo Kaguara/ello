@@ -93,6 +93,49 @@ button { font-family: inherit; }
 
 .hidden { display: none !important; }
 
+/* ---------------- Welcome ---------------- */
+.view-welcome {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 110px 24px 0;
+}
+.welcome-ello { width: 150px; }
+.welcome-heading {
+  font-family: var(--font-display); font-size: 34px; font-weight: 800; color: var(--navy);
+  margin: 18px 0 6px;
+}
+.welcome-subtext {
+  font-family: var(--font-ui); font-size: 16.5px; font-weight: 700; color: var(--text-secondary-2);
+  line-height: 1.5; margin: 0 0 22px;
+}
+.welcome-card {
+  background: #fff; border-radius: 22px; box-shadow: 0 6px 18px rgba(29,78,99,.10);
+  max-width: 300px; width: 100%; padding: 16px; display: flex; align-items: center; gap: 14px;
+  text-align: left;
+}
+.welcome-card-tile {
+  width: 56px; height: 56px; border-radius: 16px; flex-shrink: 0;
+  background: linear-gradient(160deg, #1D4E63, #3A6B85);
+  display: flex; align-items: center; justify-content: center; font-size: 26px;
+}
+.welcome-card-label {
+  font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em;
+}
+.welcome-card-title {
+  font-family: var(--font-display); font-size: 18px; font-weight: 800; color: var(--navy); margin-top: 2px;
+}
+.welcome-cta {
+  margin-top: 26px; background: var(--teal); color: #fff;
+  font-family: var(--font-display); font-weight: 800; font-size: 20px;
+  border-radius: 999px; padding: 13px 34px; cursor: pointer; border: none;
+  min-height: 44px; display: flex; align-items: center;
+  box-shadow: 0 6px 16px rgba(0,0,0,.25);
+}
+
 /* ---------------- Reading / Return ---------------- */
 .view-reading {
   position: absolute;

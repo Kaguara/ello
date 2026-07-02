@@ -3,7 +3,7 @@ import { createSpeechAdapter } from './speech';
 import type { SpeechAdapter, ListenResult } from './speech/types';
 import { resolvePending } from './speech/simBus';
 
-type Phase = 'reading' | 'card' | 'game' | 'sayit' | 'return';
+type Phase = 'welcome' | 'reading' | 'card' | 'game' | 'sayit' | 'return';
 type GameStep = 'intro' | 'kid' | 'done';
 type SayStatus = 'idle' | 'listening' | 'celebrate';
 
@@ -45,6 +45,7 @@ function wordSpans(words: string[]): string {
 }
 
 const JOURNEY_STEPS: Array<[string, Phase]> = [
+  ['Welcome back, Brian', 'welcome'],
   ['Reading the story', 'reading'],
   ['Stall → word card (hear it, see it)', 'card'],
   ['One game turn (find the owl)', 'game'],
@@ -54,7 +55,7 @@ const JOURNEY_STEPS: Array<[string, Phase]> = [
 
 export class App {
   private state: State = {
-    phase: 'reading',
+    phase: 'welcome',
     stars: 0,
     starPop: false,
     caption: '',
@@ -91,7 +92,6 @@ export class App {
       /* noop */
     }
     this.adapter = await createSpeechAdapter(() => this.setState({ micBlocked: true }));
-    this.coachTimer = window.setTimeout(() => this.setState({ showCoach: false }), 10000);
     this.render();
   }
 
@@ -101,6 +101,13 @@ export class App {
   }
 
   // ---------------- flow (ported 1:1 from the reference state machine) ----------------
+
+  private toReading = async () => {
+    this.setState({ phase: 'reading', caption: '' });
+    this.coachTimer = window.setTimeout(() => this.setState({ showCoach: false }), 10000);
+    await this.speak('Yay! Here we go, Brian. Read with me — nice and loud!');
+    this.setState({ caption: '' });
+  };
 
   private startFlow = async () => {
     clearTimeout(this.coachTimer);
@@ -237,11 +244,12 @@ export class App {
     } catch {
       /* noop */
     }
+    clearTimeout(this.coachTimer);
     // Note: any in-flight listenFor() is intentionally abandoned here (not
     // aborted) — its phase guard means a stale resolution is a no-op. Mirrors
     // the reference implementation's restart() behavior.
     this.setState({
-      phase: 'reading',
+      phase: 'welcome',
       stars: 0,
       starPop: false,
       caption: '',
@@ -262,7 +270,21 @@ export class App {
   private buildDom() {
     this.root.innerHTML = `
       <div class="phone-frame">
-        <div class="view-reading" data-el="viewReading">
+        <div class="view-welcome" data-el="viewWelcome">
+          <img class="welcome-ello anim-floaty" src="/uploads/Ello_Character.png" alt="Ello">
+          <div class="welcome-heading">Welcome back, Brian!</div>
+          <div class="welcome-subtext">I saved our next story for you.<br>It happens at night… under a big moon!</div>
+          <div class="welcome-card">
+            <div class="welcome-card-tile">🌙</div>
+            <div class="welcome-card-text">
+              <div class="welcome-card-label">TODAY'S STORY</div>
+              <div class="welcome-card-title">The Song in the Mango Tree</div>
+            </div>
+          </div>
+          <button class="welcome-cta" data-el="toReadingBtn">Let's read! →</button>
+        </div>
+
+        <div class="view-reading hidden" data-el="viewReading">
           <div class="topbar">
             <div class="back-circle">←</div>
             <div class="progress-track">
@@ -361,6 +383,7 @@ export class App {
       const span = (e.target as HTMLElement).closest<HTMLElement>('.word');
       if (span) this.onWordTap(span.dataset.word || '');
     });
+    this.el.toReadingBtn.addEventListener('click', this.toReading);
     this.el.replayBtn.addEventListener('click', this.replayWord);
     this.el.toGameBtn.addEventListener('click', this.toGame);
     this.el.dogTile.addEventListener('click', () => this.pick('dog'));
@@ -390,6 +413,8 @@ export class App {
     const grey = '#C7D3D9';
     const navy = '#1D4E63';
     const dim = '#93A9B3';
+
+    this.el.viewWelcome.classList.toggle('hidden', s.phase !== 'welcome');
 
     // reading/return
     const showStory = s.phase === 'reading' || s.phase === 'return';
