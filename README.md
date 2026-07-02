@@ -2,9 +2,9 @@
 
 **Live demo:** https://server-production-af57.up.railway.app/
 
-A vocabulary stall-recovery activity built for the Ello PM interview take-home. When a child reading aloud stalls on an unknown word ("owl"), Ello steps in with a ~50-second detour — hear it, one game turn, say it into the mic — then hands the child back to the exact sentence, word highlighted, ready to re-read. The story stays the main event; this is a recovery loop, not a lesson.
+A vocabulary stall-recovery activity built as an Ello demo. When a child reading aloud stalls on an unknown word ("owl"), Ello steps in with a ~50-second detour — hear it, play a short game, say it into the mic — then hands the child back to the exact sentence, word highlighted, ready to re-read. The story stays the main event; this is a recovery loop, not a lesson.
 
-Implemented from the attached [design handoff spec](./docs/design-handoff.md) as a production app: Vite SPA + Express server, deployed on Railway, source on GitHub.
+Implemented as a production app: Vite SPA + Express server, deployed on Railway, source on GitHub.
 
 ## Try it
 
@@ -26,7 +26,7 @@ A few judgment calls made while building this out, beyond porting the design spe
 - **Never fake success.** If the child hits the 2-attempt retry limit without saying "owl," the app does *not* play the same success beat. It exits with different copy ("Owl is a tricky word — that's okay! We'll practice it again soon."), no star, and an amber "still learning" highlight instead of teal — so the word stays honestly earnable next time, and Ello never tells a child they got it right when they didn't.
 - **The voice stack is a tiered upgrade path, not one fixed choice.** `webspeech` (free, zero-config) is the default and the reliability floor; `elevenlabs` swaps in a warmer TTS voice via a server-side proxy (key never touches the client); `azure` swaps in real phoneme-level Pronunciation Assessment for say-it scoring. Switching is one env var, no rebuild — meant to show both "what ships today" and "what we'd upgrade to in production" in the same codebase.
 - **iOS gets a designed fallback, not a silent failure.** Every iOS browser (including "Chrome" on iPhone) runs on Apple's WebKit engine, which doesn't reliably deliver live speech-to-text — it shows the mic permission prompt and then often just never produces a transcript. Rather than let a child sit through a dead mic, the app detects this upfront and clearly labels the say-it attempt as simulated, while keeping the same 5-second pacing as everywhere else so it doesn't feel broken or inconsistent.
-- **Welcome screen adds continuity.** Not in the original spec's five phases — added as the entry point so the activity reads as an ongoing relationship ("Welcome back, Brian!") rather than a cold-start demo.
+- **Welcome screen adds continuity.** added as the entry point so the activity reads as an ongoing relationship ("Welcome back, Brian!") rather than a cold-start demo.
 
 ## Architecture
 
