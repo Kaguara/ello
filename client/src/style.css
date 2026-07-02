@@ -293,7 +293,9 @@ button { font-family: inherit; }
   background: rgba(255,255,255,.9);
   border: none;
   font-size: 18px;
-  z-index: 50;
+  /* Above .panel-open (z-index 60) so it stays clickable as a close
+     button once the mobile panel overlay is open. */
+  z-index: 70;
   box-shadow: 0 2px 6px rgba(0,0,0,.2);
   cursor: pointer;
 }

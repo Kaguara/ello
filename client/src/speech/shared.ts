@@ -12,6 +12,15 @@ const FUZZY_ALTERNATES: Record<string, string[]> = {
   owl: ['owl', 'owls', 'oul', 'ol', 'aul', 'owel', 'al', 'ow', 'aow', 'hour', 'ouch'],
 };
 
+// How long to wait before giving up on a speech-engine "did it finish"
+// event (onend/onended) that may never fire. Used both as the primary
+// safety timeout and as the fallback delay when TTS setup fails outright,
+// so pacing stays consistent regardless of which path a given utterance
+// takes.
+export function fallbackDelayMs(text: string): number {
+  return Math.max(2500, text.length * 110);
+}
+
 export function matchWord(text: string, word: string): boolean {
   const t = (text || '').toLowerCase();
   const w = word.toLowerCase();
@@ -44,7 +53,7 @@ export async function webSpeechSpeak(text: string): Promise<void> {
   return new Promise((resolve) => {
     try {
       const synth = window.speechSynthesis;
-      if (!synth) return setTimeout(resolve, Math.max(1200, text.length * 55));
+      if (!synth) return setTimeout(resolve, fallbackDelayMs(text));
       synth.cancel();
       const u = new SpeechSynthesisUtterance(text);
       const voices = synth.getVoices();
@@ -64,10 +73,10 @@ export async function webSpeechSpeak(text: string): Promise<void> {
       u.onend = fin;
       u.onerror = fin;
       // SpeechSynthesisUtterance.onend is unreliable — race it with a timeout.
-      setTimeout(fin, Math.max(2500, text.length * 110));
+      setTimeout(fin, fallbackDelayMs(text));
       synth.speak(u);
     } catch {
-      setTimeout(resolve, 1200);
+      setTimeout(resolve, fallbackDelayMs(text));
     }
   });
 }

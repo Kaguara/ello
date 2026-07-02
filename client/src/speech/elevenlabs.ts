@@ -1,10 +1,49 @@
 import type { SpeechAdapter, ListenResult } from './types';
-import { webSpeechListen } from './shared';
+import { webSpeechListen, fallbackDelayMs } from './shared';
 
 // TTS is upgraded to ElevenLabs via the server proxy (key never touches the
 // client). STT stays Web Speech per the design spec.
+
+// A single persistent <audio> element, reused across every speak() call.
+// Mobile browsers' autoplay policy only allows programmatic play() when
+// tied to a recent user gesture; the fetch() below breaks that chain, so a
+// freshly-created Audio() per call gets silently blocked. Priming *this*
+// element inside a real click/tap once keeps it "unlocked" for the rest of
+// the session, since later play() calls target the same already-gestured
+// element rather than a brand-new one.
+let sharedAudioEl: HTMLAudioElement | null = null;
+let unlockAttached = false;
+
+function getSharedAudioEl(): HTMLAudioElement {
+  if (!sharedAudioEl) {
+    sharedAudioEl = new Audio();
+    sharedAudioEl.setAttribute('playsinline', 'true');
+  }
+  return sharedAudioEl;
+}
+
+function attachAutoplayUnlock(): void {
+  if (unlockAttached) return;
+  unlockAttached = true;
+  const unlock = () => {
+    const el = getSharedAudioEl();
+    el.muted = true;
+    el.play()
+      .then(() => {
+        el.pause();
+        el.currentTime = 0;
+        el.muted = false;
+      })
+      .catch(() => {
+        el.muted = false;
+      });
+  };
+  document.addEventListener('pointerdown', unlock, { once: true });
+  document.addEventListener('click', unlock, { once: true });
+}
+
 export function createElevenLabsAdapter(onMicBlocked: () => void): SpeechAdapter {
-  let audioEl: HTMLAudioElement | null = null;
+  attachAutoplayUnlock();
 
   async function speak(text: string): Promise<void> {
     try {
@@ -16,11 +55,9 @@ export function createElevenLabsAdapter(onMicBlocked: () => void): SpeechAdapter
       if (!res.ok) throw new Error(`tts failed: ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      if (audioEl) {
-        audioEl.pause();
-        URL.revokeObjectURL(audioEl.src);
-      }
-      audioEl = new Audio(url);
+      const el = getSharedAudioEl();
+      const prevUrl = el.src;
+      el.src = url;
       await new Promise<void>((resolve) => {
         let done = false;
         const fin = () => {
@@ -29,16 +66,18 @@ export function createElevenLabsAdapter(onMicBlocked: () => void): SpeechAdapter
             resolve();
           }
         };
-        audioEl!.onended = fin;
-        audioEl!.onerror = fin;
+        el.onended = fin;
+        el.onerror = fin;
         // Safety timeout in case audio events never fire.
-        setTimeout(fin, Math.max(2500, text.length * 110));
-        audioEl!.play().catch(fin);
+        setTimeout(fin, fallbackDelayMs(text));
+        el.play().catch(fin);
       });
+      if (prevUrl && prevUrl.startsWith('blob:')) URL.revokeObjectURL(prevUrl);
     } catch {
-      // Fall back to a silent-ish wait so the flow doesn't stall if the
-      // proxy/API key is misconfigured.
-      await new Promise((r) => setTimeout(r, Math.max(1200, text.length * 55)));
+      // Fall back to a wait matching normal speech pacing so the flow
+      // doesn't stall (or rush past) if the proxy/API key is misconfigured
+      // or autoplay was blocked.
+      await new Promise((r) => setTimeout(r, fallbackDelayMs(text)));
     }
   }
 

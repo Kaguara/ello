@@ -356,7 +356,8 @@ export class App {
     this.el.simSilentBtn.addEventListener('click', this.simSilent);
     this.el.restartBtn.addEventListener('click', this.restart);
     this.el.panelToggle.addEventListener('click', () => {
-      this.el.panel.classList.toggle('panel-open');
+      const open = this.el.panel.classList.toggle('panel-open');
+      this.el.panelToggle.textContent = open ? '✕' : 'ⓘ';
     });
 
     this.el.journey.innerHTML = JOURNEY_STEPS.map(
